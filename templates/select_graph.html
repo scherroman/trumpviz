@@ -1,0 +1,7 @@
+<div class="form-group graph-select" id="graph_select_dropdown" style="max-width: 300px;">
+  <select class="form-control" id="graph-selection" onchange="location = this.options[this.selectedIndex].value;">
+	  <option value="" selected disabled>{% if graph_type %} {{ graph_type_name }} {% else %} Select Graph Type {% endif %}</option>
+	  <option value="{{ url_for('serve_graph', graph_type='bar_chart_graph') }}">Frequency Bar Charts</option>
+	  <option value="{{ url_for('serve_graph', graph_type='bivariate_scatterplot_graph') }}">Bivariate Scatterplot</option>
+	</select>
+</div>

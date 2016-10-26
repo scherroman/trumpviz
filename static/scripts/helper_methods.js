@@ -22,10 +22,7 @@ function generate_bin_freqs_array(data, selected_var, selected_bin_size) {
 	for (i = 0; i < data.length; i++) {
 		var tweet = data[i]
 		//Get value of selected var for each tweet if it exists
-		var value
-		try {
-			value = selected_var.split('.').reduce((t,x)=>t[x], tweet)
-		} catch (err) {}
+		var value = get_inner_field_value(tweet, selected_var)
 
 		if (value) {
 			bin = Math.floor(value/selected_bin_size)
@@ -58,11 +55,8 @@ function generate_term_freqs_array(data, selected_var) {
 		var tweet = data[i]
 		//Get value of selected var for each tweet if it exists
 		if (selected_var === "entities.hashtags" || selected_var === "entities.user_mentions" || selected_var === "entities.emojis") {
-			var entities  
-			try {
-				entities = selected_var.split('.').reduce((t,x)=>t[x], tweet)
-			} catch (err) {}
-
+			var entities = get_inner_field_value(tweet, selected_var)
+			
 			// console.log(entities)
 			
 			for (var x = 0; x < entities.length; x++) {
@@ -87,10 +81,7 @@ function generate_term_freqs_array(data, selected_var) {
 			}
 		}
 		else {
-			var value
-			try {
-				value = selected_var.split('.').reduce((t,x)=>t[x], tweet)
-			} catch (err) {}
+			var value = get_inner_field_value(tweet, selected_var)
 
 			if (!(value in bins_dict)) {
 				bins_dict[value] = 1
@@ -123,4 +114,29 @@ function compare_freqs(a,b) {
   if (a.frequency > b.frequency)
     return -1;
   return 0;
+}
+
+function get_inner_field_value(object, field) {
+	var value
+	try {
+	  value = field.split('.').reduce((t,x)=>t[x], object)
+	} catch (err) {}
+
+	return value
+}
+
+function assign(obj, prop, value) {
+    if (typeof prop === "string")
+        prop = prop.split(".");
+
+    if (prop.length > 1) {
+        var e = prop.shift();
+        assign(obj[e] =
+                 Object.prototype.toString.call(obj[e]) === "[object Object]"
+                 ? obj[e]
+                 : {},
+               prop,
+               value);
+    } else
+        obj[prop[0]] = value;
 }

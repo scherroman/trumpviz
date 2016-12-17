@@ -15,15 +15,17 @@
 				<h1 id="title">500 Trump Tweets 🤔</h1>
 				{% include 'select_graph.html' %}
 				{% if graph_type %}
-					{% include 'select_' + graph_type + '.html' %}
+					{% include graph_type + '.html' %}
 				{% endif %}
 			</div>
 			<svg></svg>
 		</div>
 	</body>
 
-	<script src="/static/d3/d3.min.js"></script>
-	<script src="/static/d3/d3-tip/index.js"></script>
+	{% if include_d3_v4 %}
+		<script src="/static/d3/d3.min.js"></script>
+		<script src="/static/d3/d3-tip/index.js"></script>
+	{% endif %}
 	{% if graph_type %}
 		<script src="{{ '/static/scripts/' + graph_type + '.js' }}"></script>
 	{% endif %}

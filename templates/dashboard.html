@@ -1,0 +1,14 @@
+{% include 'select_brush.html' %}
+{% with axis='x-axis' %}
+{% include 'select_range.html' %}
+{% endwith %}
+{% with axis='y-axis' %}
+{% include 'select_range.html' %}
+{% endwith %}
+<div id="dashboard-container" class="row">
+	{% for n in range(4) %}
+	<div class="graph-container col-md-6">
+		<svg id="svg-{{ n }}"></svg>
+	</div>
+	{% endfor %}
+</div>

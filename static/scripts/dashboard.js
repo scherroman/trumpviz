@@ -1,14 +1,17 @@
 $.getScript("/static/scripts/helper_methods.js", function() {
-  var svg = d3.select("svg"),
-      margin = {top: 20, right: 20, bottom: 100, left: 60},
-      width = 960 - margin.left - margin.right,
-      height = 500 - margin.top - margin.bottom;
+  var selected_vars_A = ["user.followers_count","user.followers_count","user.followers_count","user.followers_count"]
+  var selected_vars_B = ["user.statuses_count","user.favourites_count","user.friends_count","retweeted_status.user.statuses_count"]
+
+  var svg = d3.selectAll(".graph-container").select("svg"),
+      margin = {top: 30, right: 20, bottom: 30, left: 60},
+      width = 500 - margin.left - margin.right,
+      height = 400 - margin.top - margin.bottom;
 
   // add the graph canvas to the body of the webpage
   svg = svg.attr("width", width + margin.left + margin.right)
   .attr("height", height + margin.top + margin.bottom)
   .append("g")
-  .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
 
   // add the tooltip area to the webpage
   var tooltip = d3.select("body").append("div")
@@ -26,35 +29,59 @@ $.getScript("/static/scripts/helper_methods.js", function() {
   // var cValue = function(d) { return d.Manufacturer;},
   //     color = d3.scaleOrdinal(d3.schemeCategory10);
 
-  $('select').on('change', function() {
-    selected_var_A = $('.variable-select:eq(0)').find('option:selected').val();
-    selected_var_B = $('.variable-select:eq(1)').find('option:selected').val();
-  
-    if (selected_var_A && selected_var_B) {
-      svg.selectAll("*").remove();
-      renderVisuals()
-    }
-  });
+  // $('#clear-brush').on('click', function() {
+  //   svg.selectAll("*").remove();
+  //   svg.each(function() {
+  //     var id = d3.select(this.parentNode).attr("id").split("-")[1]
+  //     selected_var_A = selected_vars_A[id]
+  //     selected_var_B = selected_vars_B[id]
+  //     renderVisuals(this, selected_var_A, selected_var_B)
+  //   });
+  // });
   $('.range-size-select').on('keyup', function (e) {
       if (e.keyCode == 13) {
-        selected_var_A = $('.variable-select:eq(0)').find('option:selected').val();
-        selected_var_B = $('.variable-select:eq(1)').find('option:selected').val();
-        
-        if (selected_var_A && selected_var_B) {
-          svg.selectAll("*").remove();
-          renderVisuals()
-        }
+        svg.selectAll("*").remove();
+        svg.each(function() {
+          var id = d3.select(this.parentNode).attr("id").split("-")[1]
+          selected_var_A = selected_vars_A[id]
+          selected_var_B = selected_vars_B[id]
+          renderVisuals(this, selected_var_A, selected_var_B)
+        });
       }
   });
 
-  function renderVisuals() {
+  function renderAllVisuals(brush_type) {
+    brush_type_css = $("#brush_type_css")
+    console.log(brush_type_css)
+    if (brush_type_css.length === 0) {
+      $("<style id='brush_type_css' type='text/css'> circle.hidden { fill: #ccc !important; display: block !important; } </style>").appendTo("head");
+    }
+    else if (brush_type === "BRUSH_TYPE_HIGHLIGHT") {
+      brush_type_css.replaceWith("<style id='brush_type_css' type='text/css'> circle.hidden { fill: #ccc !important; display: block !important; } </style>")
+    }
+    else if (brush_type === "BRUSH_TYPE_FILTER") {
+      brush_type_css.replaceWith("<style id='brush_type_css' type='text/css'> circle.hidden { display: none !important; } </style>")
+    }
+
+    // Render multiple graphs
+    svg.selectAll("*").remove();
+    svg.each(function() {
+      var id = d3.select(this.parentNode).attr("id").split("-")[1]
+      selected_var_A = selected_vars_A[id]
+      selected_var_B = selected_vars_B[id]
+      renderVisuals(this, selected_var_A, selected_var_B, brush_type)
+    });
+  }
+
+  renderAllVisuals("BRUSH_TYPE_HIGHLIGHT")
+
+  function renderVisuals(svg, selected_var_A, selected_var_B, brush_type) {
     // load data
     $.getJSON("/static/500_tweets_sample_trump_formatted_augmented.json", function(data) {
-
       var tweets = data.tweets
 
-      var selected_var_A = $('.variable-select:eq(0)').find('option:selected').val();
-      var selected_var_B = $('.variable-select:eq(1)').find('option:selected').val();
+      svg = d3.select(svg)
+
       var is_bin_var_A = check_is_bin_var(selected_var_A)
       var is_bin_var_B = check_is_bin_var(selected_var_B)
 
@@ -167,6 +194,24 @@ $.getScript("/static/scripts/helper_methods.js", function() {
       yMap = function(d) { return yScale(yValue(d));}, // data -> display
       yAxis = d3.axisLeft().scale(yScale);
 
+      var brush = d3.brush()
+        .extent([[0, 0], [width, height]])
+        .on("start", brushstart)
+        .on("brush", brushmove)
+        .on("end", brushend);
+
+      var gBrush = svg.append("g")
+          .attr("class", "brush")
+          .call(brush);
+
+      svg.append("text")
+        .attr("x", (width / 2))             
+        .attr("y", 0 - (margin.top / 2))
+        .attr("text-anchor", "middle")  
+        .style("font-size", "16px")
+        .style("font-weight", "bold") 
+        .text(selected_var_A + " vs " + selected_var_B)
+
       // x-axis
       xAxisEl = svg.append("g")
           .attr("class", "x axis")
@@ -222,28 +267,49 @@ $.getScript("/static/scripts/helper_methods.js", function() {
                    .style("opacity", 0);
           });
 
-      // // draw legend
-      // var legend = svg.selectAll(".legend")
-      //     .data(color.domain())
-      //   .enter().append("g")
-      //     .attr("class", "legend")
-      //     .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+      // Clear the previously-active brush, if any.
+      function brushstart(p) {
+        var selection = d3.event.selection;
+        // console.log(selection)
+      }
 
-      // // draw legend colored rectangles
-      // legend.append("rect")
-      //     .attr("x", width - 18)
-      //     .attr("width", 18)
-      //     .attr("height", 18)
-      //     .style("fill", color);
+      // Highlight the selected circles.
+      function brushmove() {
+        var selection = d3.event.selection;
+        if (selection) {
+          selectionXStart = xScale.invert(selection[0][0])
+          selectionXEnd = xScale.invert(selection[1][0])
+          //Fucking y values are inversed. WHAT.
+          selectionYStart = yScale.invert(selection[1][1])
+          selectionYEnd = yScale.invert(selection[0][1])
+          // console.log(selection)
+          // console.log("selectionXStart: " + selectionXStart)
+          // console.log("selectionXEnd: " + selectionXEnd)
+          // console.log("selectionYStart: " + selectionYStart)
+          // console.log("selectionYEnd: " + selectionYEnd)
+          circles = d3.selectAll(".graph-container").selectAll("svg").selectAll("g").selectAll("circle")
+          circles.classed("hidden", function(d) {
+            xVal = xValue(d)
+            yVal = yValue(d)
+            var inXSelection = selectionXStart < xVal && xVal < selectionXEnd;
+            var inYSelection = selectionYStart < yVal && yVal < selectionYEnd;
+            
+            return !inXSelection || !inYSelection
+          });
+        }
+      }
 
-      // // draw legend text
-      // legend.append("text")
-      //     .attr("x", width - 24)
-      //     .attr("y", 9)
-      //     .attr("dy", ".35em")
-      //     .style("text-anchor", "end")
-      //     .text(function(d) { return d;})
+      // If the brush is empty, select all circles.
+      function brushend() {
+        var selection = d3.event.selection;
+        // console.log(selection)
+        if (selection === null) {
+          circles = d3.selectAll(".graph-container").selectAll("svg").selectAll("g").selectAll("circle")
+          circles.classed("hidden", false);
+        }
+      }
     });
+  }
 
   //Remove any data points where one of the variables doesn't exist or have a value
   function cull_irrelevant_data_points(tweets, selected_var_A, selected_var_B) {
@@ -303,113 +369,9 @@ $.getScript("/static/scripts/helper_methods.js", function() {
     return tweets_final
   }
 
-  // function renderVisuals() {
-  //   // load data
-  //   d3.csv("/static/cereal.csv", function(error, data) {
-
-  //     selected_var_A = $('.variable-select:eq(0)').find('option:selected').val();
-  //     selected_var_B = $('.variable-select:eq(1)').find('option:selected').val();
-  //     is_bin_var_A = check_is_bin_var(selected_var_A)
-  //     is_bin_var_B = check_is_bin_var(selected_var_B)
-
-  //     // change string (from CSV) into number format
-  //     data.forEach(function(d) {
-  //       d.Calories = +d.Calories;
-  //       d["Protein (g)"] = +d["Protein (g)"];
-  //   //    console.log(d);
-  //     });
-
-  //     // setup x
-  //     var xValue
-  //     var xScale
-  //     var xValue = function(d) { return d.Manufacturer;}, // data -> value
-  //         xScale = d3.scaleBand().rangeRound([0, width]).padding(1), // value -> display
-  //     // var xValue = function(d) { return d.Calories;}, // data -> value
-  //     //     xScale = d3.scaleLinear().range([0, width]), // value -> display
-  //         xMap = function(d) { return xScale(xValue(d));}, // data -> display
-  //         xAxis = d3.axisBottom().scale(xScale);
-
-  //     // setup y
-  //     var yValue = function(d) { return d["Protein (g)"];}, // data -> value
-  //         yScale = d3.scaleLinear().range([height, 0]), // value -> display
-  //         yMap = function(d) { return yScale(yValue(d));}, // data -> display
-  //         yAxis = d3.axisLeft().scale(yScale);
-
-  //     // don't want dots overlapping axis, so add in buffer to data domain
-  //     xScale.domain(data.map(function (d) {return d.Manufacturer; }));
-  //     // xScale.domain([d3.min(data, xValue)-1, d3.max(data, xValue)+1]);
-  //     yScale.domain([d3.min(data, yValue)-1, d3.max(data, yValue)+1]);
-
-  //     // x-axis
-  //     svg.append("g")
-  //         .attr("class", "x axis")
-  //         .attr("transform", "translate(0," + height + ")")
-  //         .call(xAxis)
-  //       .append("text")
-  //         .attr("class", "label")
-  //         .attr("x", width)
-  //         .attr("y", -6)
-  //         .style("text-anchor", "end")
-  //         .text("Calories");
-
-  //     // y-axis
-  //     svg.append("g")
-  //         .attr("class", "y axis")
-  //         .call(yAxis)
-  //       .append("text")
-  //         .attr("class", "label")
-  //         .attr("transform", "rotate(-90)")
-  //         .attr("y", 6)
-  //         .attr("dy", ".71em")
-  //         .style("text-anchor", "end")
-  //         .text("Protein (g)");
-
-  //     // draw dots
-  //     svg.selectAll(".dot")
-  //         .data(data)
-  //       .enter().append("circle")
-  //         .attr("class", "dot")
-  //         .attr("r", 3.5)
-  //         .attr("cx", xMap)
-  //         .attr("cy", yMap)
-  //         .attr("r", 12)
-  //         // .style("fill", function(d) { return color(cValue(d));}) 
-  //         .on("mouseover", function(d) {
-  //             tooltip.transition()
-  //                  .duration(200)
-  //                  .style("opacity", .9);
-  //             tooltip.html(d["Cereal Name"] + "<br/> (" + xValue(d) 
-  //             + ", " + yValue(d) + ")")
-  //                  .style("left", (d3.event.pageX + 5) + "px")
-  //                  .style("top", (d3.event.pageY - 28) + "px");
-  //         })
-  //         .on("mouseout", function(d) {
-  //             tooltip.transition()
-  //                  .duration(500)
-  //                  .style("opacity", 0);
-  //         });
-
-  //     // // draw legend
-  //     // var legend = svg.selectAll(".legend")
-  //     //     .data(color.domain())
-  //     //   .enter().append("g")
-  //     //     .attr("class", "legend")
-  //     //     .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
-
-  //     // // draw legend colored rectangles
-  //     // legend.append("rect")
-  //     //     .attr("x", width - 18)
-  //     //     .attr("width", 18)
-  //     //     .attr("height", 18)
-  //     //     .style("fill", color);
-
-  //     // // draw legend text
-  //     // legend.append("text")
-  //     //     .attr("x", width - 24)
-  //     //     .attr("y", 9)
-  //     //     .attr("dy", ".35em")
-  //     //     .style("text-anchor", "end")
-  //     //     .text(function(d) { return d;})
-  //   });
-  }
+  // Reload graphs with new brush type
+  $("#brush_select_dropdown").change(function () {
+      console.log(this.value)
+      renderAllVisuals(this.value)
+  });
 });

@@ -5,7 +5,7 @@ $.getScript("/static/scripts/helper_methods.js", function() {
   var svg = d3.selectAll(".graph-container").select("svg"),
       margin = {top: 30, right: 20, bottom: 30, left: 60},
       width = 500 - margin.left - margin.right,
-      height = 400 - margin.top - margin.bottom;
+      height = 300 - margin.top - margin.bottom;
 
   // add the graph canvas to the body of the webpage
   svg = svg.attr("width", width + margin.left + margin.right)

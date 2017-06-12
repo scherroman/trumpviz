@@ -2,6 +2,8 @@
 
 A collection of d3 visualizations for Tweets on Trump
 
+![Top Hashtags](/previews/top_hashtags.png?raw=true "Top Hashtags")
+
 ## Use Guide
 
 **1 - [Install Miniconda 3.6](http://conda.pydata.org/miniconda.html) (A Python package manager)**
